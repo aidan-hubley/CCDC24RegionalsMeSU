@@ -1,0 +1,301 @@
+Palo Alto Firewalls 
+
+https://docs.paloaltonetworks.com/ngfw 
+
+IP: 172.20.242.150 (accessible from User zone.) 
+
+Default – admin:Changeme123 
+
+Tasks: 
+
+Change password, disable extra accounts. 
+
+Set correct access methods – only let User Zone access over SSH and HTTPS. 
+
+Make sure the network zones are configured correctly: 
+
+Internal: e1/2  172.20.240.254/24 
+
+User: e1/4 172.20.242.254/24 
+
+Public: e1/1  172.20.241.254/24 
+
+External: (Assuming this is the 172.31.2x.1 if pinging from the workstation?) 
+
+In qualifiers these were set up correctly; make sure they are actually correct if they are set up. 
+
+Rules: 
+
+For Scoring Services: 
+
+Allow HTTP(S) from ANYWHERE to Splunk (172.20.241.20). 
+
+Allow HTTP(S) from ANYWHERE to Ubuntu 18 Web (172.20.242.10) 
+
+Allow HTTP(S) from ANYWHERE to CentOS 7 E-COMM (172.20.241.30) 
+
+Allow HTTP(S) from ANYWHERE to Fedora 21 WebMail/WebApps (172.20.241.40) 
+
+Allow SMTP from ANYWHERE to Fedora 21 WebMail/WebApps (172.20.241.40) 
+
+Allow POP3 from ANYWHERE to Fedora 21 WebMail/WebApps (172.20.241.40) 
+
+Allow DNS from ANYWHERE to Debian 10 DNS/NTP (172.20.240.20) 
+
+Allow DNS from ANYWHERE to 2019 AD/DNS/DHCP (172.20.242.200) 
+
+Allow NTP from ANYWHERE to Debian 10 DNS/NTP (172.20.240.20) 
+
+Assuming Docker is working this time, we'll have to allow something to it depending on what it seems to be running. 
+
+No idea what system is running FTP/TFTP...maybe Fedora WebApps?? 
+
+Check the above to make sure something is hitting all the rules, otherwise disable. 
+
+For Us Talking To Ourselves: 
+
+Allow any from Internal/User/Public to External (for patches & maybe research) 
+
+??? Allow DHCP from Internal/User/Public to 2019 AD/DNS/DHCP (172.20.242.200) ??? 
+
+??? Allow AD from Internal/User/Public to 2019 AD/DNS/DHCP (172.20.242.200) ??? 
+
+Put an allow all rule FROM US in here for testing to see what's hitting it before activating this configuration. 
+
+Put an allow all rule FROM EXTERNAL in here for testing to see what's hitting it before activating this configuration. 
+
+Block Everything: 
+
+Block any from Internal/User/Public to Internal/User/Public (this way we can see if anything is hitting & fix it if so.) 
+
+Block any from External to Internal/User/Public. 
+
+After this is done, update the browser. 
+
+Change password & disable extra accounts: 
+
+In Web UI: 
+
+Device > Administrators 
+
+Defaults are good – None, Dynamic, Superuser, None 
+
+Device > Setup > Management (Authentication settings – for session timeouts/max) 
+
+In CLI: 
+
+configure 
+
+set mgt-config users (view users) 
+
+set mgt-config users <username> password (set new password for user) 
+
+delete mgt-config users <username> (delete user) 
+
+set mgt-config users <username> permissions role-based superuser yes (new admin user) 
+
+set deviceconfig setting management <username> -session max-session-count <0-4> (set max session count for username) 
+
+set deviceconfig setting management <username> -session max-time <0, 60-1499> 
+
+commit 
+
+exit 
+
+ 
+
+Set access methods: 
+
+In Web UI: 
+
+Device > Setup > Interfaces & select Management 
+
+Set HTTPS, SSH, & ping; permitted IP addresses, and PA device's network info 
+
+In CLI: 
+
+configure 
+
+show deviceconfig system service [shows what's enabled] 
+
+set deviceconfig system service enable-http[s] or enable-ssh  [to enable] 
+
+set deviceconfig system service disable-xxx [to disable] 
+
+delete deviceconfig system permitted-ip <subnet to be removed> [to delete allowed IP] 
+
+set deviceconfig system permitted-ip <subnet to be added> [add allowed IP] 
+
+commit 
+
+Network Zones: 
+
+Web UI: 
+
+Configure default route to Internet router: 
+
+Network > Virtual Router. Select default. 
+
+Static Routes. Select Add. Enter a name. Enter the route in the Destination field. 
+
+Select IP Address radio button in Next Hop field. 
+
+Enter IP address and netmask for your Internet gateway. 
+
+Click OK. 
+
+Configure zones: 
+
+Select Network > Interfaces and select interface. 
+
+Select the interface type. Maybe Layer3. 
+
+On the Config tab, select Security Zone > New Zone. 
+
+Name the zone. 
+
+Select the default option under Virtual Router dropdown. 
+
+Select the IPv4 tab and add the IP address/network mask ("public" IP). 
+
+To be able to ping the interface: Advanced > Other Info; Management Profile; New Management Profile; add a name & select ping. 
+
+This works the same for internal zones. 
+
+CLI: 
+
+Below are some possible ways commands start if we get really stuck. Ideally we want to get the GUI up and not try to do this from the command line. 
+
+show network interface (this probably is the start of how to show them all?) 
+
+set network interface 
+
+Set zone <name> 
+
+Set vsys <name> zone <name> 
+
+Set up firewall rules: 
+
+Web: 
+
+Policies > Security click Add. 
+
+Do all the normal stuff. 
+
+Make sure that Log at session end is checked. 
+
+Going out: You can add an Application Filter, set the Category to "general Internet," and add Internet and SSL as applications. 
+
+You can run tests by clicking Device > Troubleshooting, select Security Policy Match, enter source/destination/protocol/application and hit Execute to see what rule it hits. 
+
+CLI: 
+
+> configure (press enter) 
+
+# set rulebase security rules <name> from <source zone> to <destination zone> destination <ip> application <application> service <any/application-default/service name> action <allow/deny> (press enter) 
+
+commit 
+
+# exit 
+
+Example: 
+
+# set rulebase security rules Generic-Security from Outside-L3 to Inside-L3 destination 63.63.63.63 application web-browsing service application-default action allow 
+
+To see what's currently active: 
+
+> show running security-policy 
+
+> show config running (for everything) 
+
+show rulebase security rules <rulename> 
+
+delete rulebase security rules <rulename> 
+
+Use ? Or tab to get command help. 
+
+Logs: 
+
+Web: 
+
+Monitor > Logs 
+
+To change columns: Click the arrow to the right of any column header & click Columns. 
+
+Click spyglass for detailed info about log. 
+
+Filter Logs: 
+
+All of these need parentheses around them, I think. 
+
+Some templates: 
+
+addr.src in x.x.x.x[/x] 
+
+addr.dst in x.x.x.x[/x] 
+
+!(addr in x.x.x.x) 
+
+zone.src eq zone_a 
+
+zone.dst eq zone_a 
+
+port.src eq aa 
+
+port.dst eq aa 
+
+receive_time leq 'yyyy/mm/dd hh:mm:ss' 
+
+receive_time geq 'yyyy/mm/dd hh:mm:ss' 
+
+  (interface.src eq 'ethernet1/x') 
+
+ (action neq deny) 
+
+(action eq allow) 
+
+Click the filter button. Click a connector. Click an attribute. Then the other stuff populates. 
+
+CLI: 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+Host Based Firewalls 
+
+NIX / IP Tables 
+
+View created firewall rules 
+
+sudo iptables -L 
+
+Allow established incoming & outgoing connections 
+
+sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 
+
+sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED -j ACCEPT 
+
+Drop invalid packets 
+
+sudo iptables -A INPUT -m conntrack --ctstate INVALID -j DROP 
+
+Allow services 
+
+sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT 
+
+sudo iptables -A OUTPUT -p tcp --sport 22 -m conntrack --ctstate ESTABLISHED -j ACCEPT 
+
+Windows / Defender Firewall 
+
+Start Bar > Windows Defender Firewall 
+
+Turn on Windows Defender Firewall 
+
+Configure to allow all apps that are not on the list of allowed apps 
