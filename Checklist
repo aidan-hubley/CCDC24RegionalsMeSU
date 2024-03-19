@@ -1,0 +1,13 @@
+Checklist:
+
+Firewall rules applied - Grace, Brandan, Ryan 
+
+Change initial passwords – everyone 
+
+Run Win/LinPEAs - everyone 
+
+Change splunk web interface password IP:9000 - Ray 
+
+DNS lockdown – Brandan 
+
+Lockdown AD – Chris 
