@@ -1,0 +1,5 @@
+Correctly configure zones (they could be configured incorrectly)
+
+Make sure zones have correct traffic rules (follow flow control)
+
+![Alt Text](/imgs/GetImage.png)
